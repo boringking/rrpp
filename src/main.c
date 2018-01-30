@@ -12,7 +12,17 @@
 #include "rrpp_regs.h"
 
 
-
+int non_case_strcmp(const char * __s1,const char * __s2){
+	int i;
+	char s1[128] , s2[128];
+	strcpy(s1, __s1);
+	strcpy(s2, __s2);
+	for(i=0;i<strlen(s1);i++)
+		s1[i] = tolower(s1[i])
+	for(i=0;i<strlen(s2);i++)
+		s2[i] = tolower(s2[i])
+	return strcmp(s1,s2);
+}
 
 
 int major_main(int argc , char ** argv){
@@ -219,16 +229,16 @@ int main(int argc, char ** argv){
 	int new_argc = argc-1;
 	char ** new_argv = argv+1;
 	/* boot as daemon */
-	if( strcmp("--daemon" , argv[1]) )
+	if( non_case_strcmp("--daemon" , argv[1]) )
 		goto NO_DAEMON;
 	boot_daemon();
 	new_argc--;
 	new_argv++;
 NO_DAEMON:
-	if( !strcmp(argv[argc-new_argc] , "--major") ){
+	if( !non_case_strcmp(argv[argc-new_argc] , "--major") ){
 		return major_main(new_argc,new_argv);
 	}
-	if( !strcmp(argv[argc-new_argc] , "--trans") ){
+	if( !non_case_strcmp(argv[argc-new_argc] , "--trans") ){
 		return transport_main(new_argc,new_argv);
 	}
 	/* no match for argv[1] */
