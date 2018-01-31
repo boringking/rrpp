@@ -75,16 +75,16 @@ int kill_stp(void){
 	/* enable/disbale stp */
 	printf("disable stp...\n");
 	/* global stp setting */
-	sprintf(cmd , "cli_stp disable stp");
+	sprintf(cmd , CLI_PATH"cli_stp disable stp");
 	if(exec_command(cmd)<0)
 		goto CMD_FAILED;
 	
 	/* disable ports stp function */
-	sprintf(cmd , "cli_stp disable stp ports 1-28");
+	sprintf(cmd , CLI_PATH"cli_stp disable stp ports 1-28");
 	if(exec_command(cmd)<0)
 		goto CMD_FAILED;
 	
-	sprintf(cmd , "cli_stp restart stp");
+	sprintf(cmd , CLI_PATH"cli_stp restart stp");
 	if(exec_command(cmd)<0)
 		goto CMD_FAILED;
 	

@@ -77,8 +77,8 @@ int major_node_constructor(
 	if(vlan_create_data_file()<0)
 		return -1;
 	/* config as tag vlan */
-	exec_command("cli_vlan config vlan tagging vid");
-	exec_command("cli_vlan config vlan type tag");
+	exec_command(CLI_PATH"cli_vlan config vlan tagging vid");
+	exec_command(CLI_PATH"cli_vlan config vlan type tag");
 	/* create vlan */
 	for(int i=0;i<ARRAY_SIZE(this->vlan);++i){
 		//fgetc(stdin);
@@ -124,7 +124,7 @@ void major_node_destructor(struct major_node * this){
 		                   PBIT(this->main_portno)|PBIT(this->second_portno));
 	}
 	exec_command("rm "VLAN_DATA_PATH);
-	exec_command("cli_stp enable stp ports 1-28");
+	exec_command(CLI_PATH"cli_stp enable stp ports 1-28");
 }
 
 void * major_node_recv_thread(void * arg){

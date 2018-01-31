@@ -54,7 +54,7 @@ int vlan_add_port_into_entry(const char * name , int port){
 
 int vlan_create_data_file(void){
 	vlan_t buf[64] = {0};
-	FILE * pfp = popen("cli_vlan show vlan name all" , "r");
+	FILE * pfp = popen(CLI_PATH"cli_vlan show vlan name all" , "r");
 	if( !pfp ){
 		fprintf(stderr , "popen: %s\n" , strerror(errno));
 		return -1;

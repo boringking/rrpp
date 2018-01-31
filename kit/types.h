@@ -19,7 +19,7 @@ typedef unsigned short vid_t;
 
 #define  ARRAY_SIZE(x)   (sizeof(x)/sizeof((x)[0]))
 
-
+#define  CLI_PATH    "/home/user/callback/"
 
 #endif
 

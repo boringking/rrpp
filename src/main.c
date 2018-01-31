@@ -237,7 +237,7 @@ int boot_daemon (int mode) {
 int main(int argc, char ** argv){
 	/* restore fd-0,1,2 to console if called by cgi */
 	reset_tty();
-	printf("finish reset tty\n");
+	//printf("finish reset tty\n");
 	if( argc < 2){
 		prompt(argv);
 		exit(EXIT_FAILURE);
