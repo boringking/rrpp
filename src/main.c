@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <ctype.h>
 #include <unistd.h>
 #include "main.h"
 #include "vlan.h"
@@ -11,6 +12,16 @@
 #include "transport_node.h"
 #include "rrpp_regs.h"
 
+void reset_tty(void){
+	int fd = open("/dev/console" , O_RDWR);
+	if(fd<0)
+		return;
+	dup2(fd , STDOUT_FILENO);
+	dup2(fd , STDIN_FILENO);
+	dup2(fd , STDERR_FILENO);
+	if(fd>STDERR_FILENO)
+		close(fd);
+}
 
 int non_case_strcmp(const char * __s1,const char * __s2){
 	int i;
@@ -18,9 +29,9 @@ int non_case_strcmp(const char * __s1,const char * __s2){
 	strcpy(s1, __s1);
 	strcpy(s2, __s2);
 	for(i=0;i<strlen(s1);i++)
-		s1[i] = tolower(s1[i])
+		s1[i] = tolower(s1[i]);
 	for(i=0;i<strlen(s2);i++)
-		s2[i] = tolower(s2[i])
+		s2[i] = tolower(s2[i]);
 	return strcmp(s1,s2);
 }
 
@@ -168,7 +179,7 @@ int transport_main(int argc , char ** argv){
 }
 
 // 使调用进程成为精灵进程
-int boot_daemon (void) {
+int boot_daemon (int mode) {
 	// 创建子进程
 	pid_t pid = fork ();
 
@@ -183,45 +194,50 @@ int boot_daemon (void) {
 		// 退出，使子进程成为孤儿进程并被init进程收养
 		exit (EXIT_SUCCESS);
 
-	// 子进程创建新会话并成为新会话中唯一进程组的组长
-	// 进程，进而与原会话、原进程组和控制终端脱离关系
-	setsid ();
+	if (2!=mode){
+		// 子进程创建新会话并成为新会话中唯一进程组的组长
+		// 进程，进而与原会话、原进程组和控制终端脱离关系
+		setsid ();
 
-	// 打开空设备文件
-	int fd = open("/dev/null", O_RDWR, 0);
-	// 若成功
-	if (fd != -1) {
-		// 复制空设备文件描述符到标准输入
-		dup2 (fd, STDIN_FILENO);
-		// 复制空设备文件描述符到标准输出
-		dup2 (fd, STDOUT_FILENO);
-		// 复制空设备文件描述符到标准出错
-		dup2 (fd, STDERR_FILENO);
-		// 若空设备文件描述符大于标准出错
-		if (fd > STDERR_FILENO)
-			// 关闭空设备文件描述符
-			close (fd);
-	}
-/*
-	// 若配置器中的日志文件路径非空且打开(创建)日志文件成功
-	if (! m_cfg.m_logFile.empty () &&
-		(fd = open (m_cfg.m_logFile.c_str (),
-		O_WRONLY | O_APPEND | O_CREAT, 0664)) != -1) { */
+		// 打开空设备文件
+		int fd = open("/dev/null", O_RDWR, 0);
+		// 若成功
+		if (fd != -1) {
+			// 复制空设备文件描述符到标准输入
+			dup2 (fd, STDIN_FILENO);
+			// 复制空设备文件描述符到标准输出
+			dup2 (fd, STDOUT_FILENO);
+			// 复制空设备文件描述符到标准出错
+			dup2 (fd, STDERR_FILENO);
+			// 若空设备文件描述符大于标准出错
+			if (fd > STDERR_FILENO)
+				// 关闭空设备文件描述符
+				close (fd);
+		}
+	/*
+		// 若配置器中的日志文件路径非空且打开(创建)日志文件成功
+		if (! m_cfg.m_logFile.empty () &&
+			(fd = open (m_cfg.m_logFile.c_str (),
+			O_WRONLY | O_APPEND | O_CREAT, 0664)) != -1) { */
 
-	if( (fd = open("/home/rrpp/log" , O_WRONLY|O_APPEND|O_CREAT , 0664))!=-1 ){
-		// 复制日志文件描述符到标准输出
-		dup2 (fd, STDERR_FILENO);
-		// 若日志文件描述符大于标准出错
-		if (fd > STDERR_FILENO)
-			// 关闭日志文件描述符
-			close (fd);
-		fprintf(stderr , "----------rrpp-log----------\n");
-		return 0;
+		if( (fd = open("/home/rrpp/log" , O_WRONLY|O_APPEND|O_CREAT , 0664))!=-1 ){
+			// 复制日志文件描述符到标准输出
+			dup2 (fd, STDERR_FILENO);
+			// 若日志文件描述符大于标准出错
+			if (fd > STDERR_FILENO)
+				// 关闭日志文件描述符
+				close (fd);
+			fprintf(stderr , "----------rrpp-log----------\n");
+			return 0;
+		}
 	}
 	return -1;
 }
 
 int main(int argc, char ** argv){
+	/* restore fd-0,1,2 to console if called by cgi */
+	reset_tty();
+	printf("finish reset tty\n");
 	if( argc < 2){
 		prompt(argv);
 		exit(EXIT_FAILURE);
@@ -229,16 +245,19 @@ int main(int argc, char ** argv){
 	int new_argc = argc-1;
 	char ** new_argv = argv+1;
 	/* boot as daemon */
-	if( non_case_strcmp("--daemon" , argv[1]) )
+	if( !strcmp("--daemon" , argv[1]) )
+		boot_daemon(0);
+	else if( !strcmp("--daemon2" , argv[1]) )
+		boot_daemon(2);
+	else
 		goto NO_DAEMON;
-	boot_daemon();
 	new_argc--;
 	new_argv++;
 NO_DAEMON:
 	if( !non_case_strcmp(argv[argc-new_argc] , "--major") ){
 		return major_main(new_argc,new_argv);
 	}
-	if( !non_case_strcmp(argv[argc-new_argc] , "--trans") ){
+	if( !non_case_strcmp(argv[argc-new_argc] , "--transport") ){
 		return transport_main(new_argc,new_argv);
 	}
 	/* no match for argv[1] */
