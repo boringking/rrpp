@@ -21,6 +21,12 @@ void reset_tty(void){
 	dup2(fd , STDERR_FILENO);
 	if(fd>STDERR_FILENO)
 		close(fd);
+
+	/* set stdout as line-buffer, stderr as no-buffer */
+	if(setvbuf(stdout , malloc(1024) ,_IOLBF ,1024) || setvbuf(stderr ,NULL ,_IONBF ,0)){
+		perror("setvbuf");
+		exit(EXIT_FAILURE);
+	}
 }
 
 int non_case_strcmp(const char * __s1,const char * __s2){
