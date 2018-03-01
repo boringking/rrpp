@@ -17,7 +17,7 @@
 
 
 
-
+/* 构造带special tag的帧 */
 static int fill_special_frame(void * dst , const void * src , int len , int port){
 	memcpy(dst , src , 12);
 	struct special_tag_tx * p_tag = (struct special_tag_tx *)((char*)dst+12);

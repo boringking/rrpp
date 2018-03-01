@@ -14,23 +14,23 @@ enum major_node_status{
 };
 
 struct major_node{
-	struct raw_socket raw_sock;
+	struct raw_socket raw_sock; //socket底层相关
 	/* attributes */
-	uint16_t did;
-	uint16_t rid;
-	vlan_t   vlan[2];
-	int main_portno;
-	int second_portno;
-	enum major_node_status status;
+	uint16_t did;                 // domain id
+	uint16_t rid;                 // ring id
+	vlan_t   vlan[2];             // [0]:主环vlan [1]:子环vlan
+	int main_portno;              // 主端口
+	int second_portno;            // 副端口
+	enum major_node_status status;//节点状态(complete/failed)
 	
 	/* pthread */
-	pthread_mutex_t access_mutex;
-	int    recv_hello_timeout;
-	struct thread recv_thread;
-	struct thread hello_thread;
-	struct thread check_hello_thread;
+	pthread_mutex_t access_mutex;    // 节点对象访问保护(互斥量)
+	int    recv_hello_timeout;       // 接收hello超时
+	struct thread recv_thread;       // recv_thread对象
+	struct thread hello_thread;      // hello_thread对象
+	struct thread check_hello_thread;// check_hello_thread对象
 	
-	/* base methods */
+	/* 类方法 */
 	int  (* sendto_port)(struct major_node * this,int port,const void * src,int len);
 	int  (* block_port)(struct major_node * this, int port , const vlan_t * exclude);
 	int  (* release_port)(struct major_node * this, int port ,const vlan_t * exclude);

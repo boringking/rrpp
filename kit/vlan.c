@@ -8,6 +8,9 @@
 #include "vlan_raw.h"
 
 
+/*
+给一个帧添加vlan字段
+*/
 int fill_vlan_frame(void * dst , const void * src , int len , uint16_t vid){
 	memcpy(dst , src , 12);
 	struct vlan_field * p_tag = (struct vlan_field *)((char*)dst+12);
@@ -51,7 +54,10 @@ int vlan_add_port_into_entry(const char * name , int port){
 
 #endif
 
-
+/*
+文件 : /home/rrpp/vlan-data
+保存vlan信息
+*/
 int vlan_create_data_file(void){
 	vlan_t buf[64] = {0};
 	FILE * pfp = popen(CLI_PATH"cli_vlan show vlan name all" , "r");
@@ -135,7 +141,7 @@ const vlan_t ** vlan_read_all_entry_name(void){
 }
 #endif
 
-
+/* 阻塞端口 */
 int block_port(void * arg , int port , const vlan_t * exclude){
 	time_test_begin();
 	printf("BLOCK port %d...\n" , port);
@@ -170,6 +176,7 @@ int block_port(void * arg , int port , const vlan_t * exclude){
 	return 0;
 }
 
+/* 释放端口 */
 int release_port(void * arg , int port , const vlan_t * exclude){
 	time_test_begin();
 	printf("RELEASE port %d...\n" , port);

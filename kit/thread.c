@@ -5,6 +5,7 @@
 #include <errno.h>
 #include "thread.h"
 
+/* 构造线程对象(创建线程) */
 int thread_constructor(struct thread * this ,const char * name, int stacksize,void *(*routine)(void*),void * arg){
 	this->name = name;
 	/* set stack */

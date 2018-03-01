@@ -9,6 +9,12 @@
 #include "link_status.h"
 
 
+/*
+读取端口link状态
+返回值:
+	true:  link-up
+	false: link-down
+*/
 bool read_port_link_status(int port){
 	struct LinkStatusSetting port_status_buf = {
 		.cmdid = ID_COMMON_GET_PORT_LINK_STATUS,

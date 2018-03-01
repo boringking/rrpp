@@ -12,6 +12,11 @@
 #include "transport_node.h"
 #include "rrpp_regs.h"
 
+/*
+因为该程序可能被cgi程序调用，所以
+标准输入/标准输出/标准错误可能不是指向串口
+该函数将标准输入/标准输出/标准错误指向串口
+*/
 void reset_tty(void){
 	int fd = open("/dev/console" , O_RDWR);
 	if(fd<0)
@@ -29,6 +34,7 @@ void reset_tty(void){
 	}
 }
 
+/* 不管大小写的strcmp */
 int non_case_strcmp(const char * __s1,const char * __s2){
 	int i;
 	char s1[128] , s2[128];
@@ -41,13 +47,23 @@ int non_case_strcmp(const char * __s1,const char * __s2){
 	return strcmp(s1,s2);
 }
 
-
+/* 启动主节点 */
 int major_main(int argc , char ** argv){
 	uint16_t did=0xffff , rid=0xffff;
 	uint16_t vid[2] ={0xffff,0xffff};
 	uint16_t main_portno=0xffff,second_portno=0xffff;
 
 	int opt;
+	/*
+	  获取参数
+	  例如 
+ 	  rrpp --major -d0 -r0 -v10 -m4 -s5
+	  表示domain id =0
+	      ring id = 0
+	      vid = 10
+	      mainport = 4
+	      secondport=5
+	*/
 	while( (opt=getopt(argc,argv,"d:r:v:m:s:"))!=-1 ){
 		switch(opt){
 			case 'd':  // domain id
@@ -102,6 +118,7 @@ int major_main(int argc , char ** argv){
 	/* boot major node... */
 	printf("====>boot MAJOR node...........\n");
 	struct major_node major;
+	// 构造主节点对象(初始化数据，创建线程等等)
 	if(major_node_constructor(&major,did,rid,vid,main_portno,second_portno)<0){
 		fprintf(stderr , "major_node_constructor: failed\n");
 		exit(EXIT_FAILURE);
@@ -120,6 +137,7 @@ int transport_main(int argc , char ** argv){
 	uint16_t main_portno=0xffff,second_portno=0xffff;
 
 	int opt;
+	// 与主节点类似，参考major_main里的注释
 	while( (opt=getopt(argc,argv,"d:r:v:m:s:"))!=-1 ){
 		switch(opt){
 			case 'd':  // domain id
@@ -174,6 +192,7 @@ int transport_main(int argc , char ** argv){
 	/* boot transport node... */
 	printf("====>boot TRANSPORT node...........\n");
 	struct transport_node transport;
+	// 构造传输节点对象(初始化数据，创建线程等等)
 	if(transport_node_constructor(&transport,did,rid,vid,main_portno,second_portno)<0){
 		fprintf(stderr , "transport_node_constructor: failed\n");
 		exit(EXIT_FAILURE);
@@ -184,54 +203,35 @@ int transport_main(int argc , char ** argv){
 	return 0;
 }
 
-// 使调用进程成为精灵进程
+/*
+使进程成为精灵进程，解除对终端的占用
+*/
 int boot_daemon (int mode) {
-	// 创建子进程
 	pid_t pid = fork ();
 
-	// 若失败
 	if (pid == -1){
 		perror("fork");
 		return -1;
 	}
 
-	// 若为父进程
 	if (pid)
-		// 退出，使子进程成为孤儿进程并被init进程收养
 		exit (EXIT_SUCCESS);
 
 	if (2!=mode){
-		// 子进程创建新会话并成为新会话中唯一进程组的组长
-		// 进程，进而与原会话、原进程组和控制终端脱离关系
 		setsid ();
 
-		// 打开空设备文件
 		int fd = open("/dev/null", O_RDWR, 0);
-		// 若成功
 		if (fd != -1) {
-			// 复制空设备文件描述符到标准输入
 			dup2 (fd, STDIN_FILENO);
-			// 复制空设备文件描述符到标准输出
 			dup2 (fd, STDOUT_FILENO);
-			// 复制空设备文件描述符到标准出错
 			dup2 (fd, STDERR_FILENO);
-			// 若空设备文件描述符大于标准出错
 			if (fd > STDERR_FILENO)
-				// 关闭空设备文件描述符
 				close (fd);
 		}
-	/*
-		// 若配置器中的日志文件路径非空且打开(创建)日志文件成功
-		if (! m_cfg.m_logFile.empty () &&
-			(fd = open (m_cfg.m_logFile.c_str (),
-			O_WRONLY | O_APPEND | O_CREAT, 0664)) != -1) { */
 
 		if( (fd = open("/home/rrpp/log" , O_WRONLY|O_APPEND|O_CREAT , 0664))!=-1 ){
-			// 复制日志文件描述符到标准输出
 			dup2 (fd, STDERR_FILENO);
-			// 若日志文件描述符大于标准出错
 			if (fd > STDERR_FILENO)
-				// 关闭日志文件描述符
 				close (fd);
 			fprintf(stderr , "----------rrpp-log----------\n");
 			return 0;
@@ -240,6 +240,13 @@ int boot_daemon (int mode) {
 	return -1;
 }
 
+/*
+usage of the program:
+主节点:
+rrpp --major <-d domain_id> <-r ring_id> <-v vid1[,vid2]> <-m mainport_number> <-s secondport_number>
+传输节点:
+rrpp --transport <-d domain_id> <-r ring_id> <-v vid1[,vid2]> <-m mainport_number> <-s secondport_number>
+*/
 int main(int argc, char ** argv){
 	/* restore fd-0,1,2 to console if called by cgi */
 	reset_tty();

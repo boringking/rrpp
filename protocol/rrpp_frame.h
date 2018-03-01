@@ -12,7 +12,7 @@ struct eth_hdr {
 } __attr_packed__ ;
 
 
-
+/* 没什么用,rrpp标准帧格式 */
 struct pre_rrpp_field{
     uint16_t frame_length;      //以太网帧长度
 	uint16_t dsap_ssap;
@@ -23,7 +23,7 @@ struct pre_rrpp_field{
 } __attr_packed__ ;
 
 
-
+/* rrpp帧 */
 struct rrpp_field{
 	uint16_t rrpp_length;
 	
@@ -45,12 +45,14 @@ struct rrpp_field{
 
 
 /* complete rrpp packet(without vlan and special tag) */
+/* 完整rrpp帧，不包含vlan和special tag字段 */
 struct rrpp_packet{
 	struct eth_hdr hdr;
 	struct pre_rrpp_field pre_rrpp;
 	struct rrpp_field rrpp;
 } __attr_packed__;
 
+/* 包含vlan字段的rrpp帧 */
 struct rrpp_vlan_packet{
 	struct eth_hdr hdr;
 	struct vlan_field vlan;
@@ -58,13 +60,14 @@ struct rrpp_vlan_packet{
 	struct rrpp_field rrpp;
 }__attr_packed__;
 
+/* 接收的special tag，用以判断接收端口 */
 struct special_tag_rx{
 	uint16_t tag;
 	uint32_t __reserved:27;
 	uint32_t src_port:5;
 } __attr_packed__;
 
-
+/* 包含vlan字段+special tag的rrpp帧 */
 struct rrpp_special_vlan_packet{
 	struct eth_hdr hdr;
 	struct special_tag_rx special;
@@ -75,6 +78,7 @@ struct rrpp_special_vlan_packet{
 
 
 #define  RRPP_DST_MAC {0x01,0x80,0xc2,0x00,0x00,0x00}
+/* rrpp mac地址byte5范围 0x11~0x1F */
 #define  RRPP_DST_MAC_B5_BEGIN  0x11
 #define  RRPP_DST_MAC_B5_END    0x1F
 

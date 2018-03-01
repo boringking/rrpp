@@ -24,7 +24,7 @@ void maketimeout(struct timespec * tsp , int milliseconds){
 	//tsp->tv_sec += seconds;
 }
 
-
+// 执行shell命令
 int exec_command(const char * command){
 #if   0
 	/* writing pipe is faster a lot than writing terminal */
@@ -38,7 +38,7 @@ int exec_command(const char * command){
 #endif
 }
 
-
+// 调用icplus提供的库函数
 int request_command(const char * command){
 	char szCookiedata[40]="admin";
 	char szRecv[0x400];
@@ -70,24 +70,29 @@ int enable_stp_ports(const char * port , bool set){
 }
 */
 
+// 关闭stp
 int kill_stp(void){
 	char cmd[256];
 	/* enable/disbale stp */
 	printf("disable stp...\n");
 	/* global stp setting */
+	// 命令: cli_stp disable stp
 	sprintf(cmd , CLI_PATH"cli_stp disable stp");
 	if(exec_command(cmd)<0)
 		goto CMD_FAILED;
 	
 	/* disable ports stp function */
+	// 命令: cli_stp disable stp ports 1-28
 	sprintf(cmd , CLI_PATH"cli_stp disable stp ports 1-28");
 	if(exec_command(cmd)<0)
 		goto CMD_FAILED;
-	
+
+	// 执行这个上面两条命令才能起作用
 	sprintf(cmd , CLI_PATH"cli_stp restart stp");
 	if(exec_command(cmd)<0)
 		goto CMD_FAILED;
-	
+
+	// 使所有端口进入forward状态，详见手册
 	/*----- forward all ports -----*/
 	/* Each port of 
 	 * IP1829A can be set in one of the four spanning tree states individually
@@ -108,6 +113,7 @@ CMD_FAILED:
 }
 
 
+// 使能mac学习功能
 int enable_mac_learning(int port , bool set){
 	uint16_t regval;
 	if( port>=1 && port<=16 ){
@@ -133,6 +139,7 @@ int enable_mac_learning(int port , bool set){
 	return 0;
 }
 
+// 刷新(清除)mac表
 int refresh_fdb(void * arg){
 	//printf("CLEAR MAC TABLE...\n");
 	return request_command("clear mac_table ports all");
@@ -148,6 +155,14 @@ void hexdump(const void * p , int len){
 	printf("\n");
 }
 
+/*
+时间测试
+用法:
+	struct timeval time;
+	time_test(__func__, &time, 0);
+	要测试时间的代码
+	time_test(__func__, &time,1); //打印结果,消耗多长时间
+*/
 void time_test(const char * runname,struct timeval * time ,int step){
 	if( 0==step ){
 		/* begin */

@@ -23,7 +23,9 @@ static void transport_node_killer(int signo){
 	exit(EXIT_SUCCESS);
 }
 
-
+/* 构造传输节点对象,类似主节点
+   参考 major_node.c
+*/
 int transport_node_constructor(
 	struct transport_node * this,
 	uint16_t did,
@@ -90,6 +92,7 @@ int transport_node_constructor(
 		vlan_add_port_into_entry(this->vlan[i].name,this->main_portno);
 		vlan_add_port_into_entry(this->vlan[i].name,this->second_portno);
 #else
+		/* 将主/副端口加入控制vlan */
 		raw_vlan_add_ports(this->vlan[i].vid,
 		                   PBIT(this->main_portno)|PBIT(this->second_portno));
 #endif
@@ -116,7 +119,7 @@ THREAD_CONSTRUCTOR_FAIL:
 	return -1;
 }
 
-
+/* 销毁传输节点对象 */
 void transport_node_destructor(struct transport_node * this){
 //	thread_destructor(&this->detect_link_status_thread);
 //	thread_destructor(&this->recv_thread);
@@ -133,20 +136,22 @@ void transport_node_destructor(struct transport_node * this){
 	exec_command(CLI_PATH"cli_stp enable stp ports 1-28");
 }
 
+// 检查rrpp报文类型,并获得端口号
 int transport_node_judge_frame_type(struct transport_node * this,const void * frame,int * port){
 	const struct rrpp_special_vlan_packet * pkt = (const struct rrpp_special_vlan_packet *)frame;
 
+	/* 检查mac地址*/
 	if( !is_rrpp_dst_mac(pkt->hdr.dst) ){
 		/* not 01-80-c2-00-00-11~1F */
 		return RRPP_TYPE_NOP;
 	}
-
+	/* 检查special tag */
 	if( pkt->special.tag != SPECIAL_TAG_VAL){
 		/* special tag not contained */
 		return RRPP_TYPE_NOP;
 	}
 
-	/* obtain source port */
+	/* 获取源端口 */
 	*port = pkt->special.src_port+1; // (begin from 0)
 	/* 必须从环内端口接收 */
 	if((*port)!=this->main_portno && (*port)!=this->second_portno)
@@ -156,6 +161,7 @@ int transport_node_judge_frame_type(struct transport_node * this,const void * fr
 		return RRPP_TYPE_NOP;
 	}
 #if  1
+	/* 检查domain id , ring id */
 	if( pkt->rrpp.domain_id != this->did || pkt->rrpp.ring_id != this->rid){
 		/* domain id or ring id not match */
 		return RRPP_TYPE_NOP;
@@ -173,6 +179,7 @@ int transport_node_judge_frame_type(struct transport_node * this,const void * fr
 			return RRPP_TYPE_NOP;
 	}
 #else
+	/* 判断报文类型 */
 	switch( pkt->hdr.dst[5]){
 		/* transport node receives hello/common/complete packet */
 		case RRPP_TYPE_HELLO:
@@ -187,6 +194,12 @@ int transport_node_judge_frame_type(struct transport_node * this,const void * fr
 	return RRPP_TYPE_NOP;
 }
 
+/* 
+Up state:
+端口down => down state，由配对端口发送link-down报文
+Down state:
+端口up => preforwarding state，阻塞恢复的端口，由配对端口发送link-up报文
+*/
 static void transport_node_detect_link_status_handler(
 	struct transport_node * this,
 	int handle_portno,
@@ -195,6 +208,9 @@ static void transport_node_detect_link_status_handler(
 	bool couple_port_link)
 {
 	struct rrpp_vlan_packet frame;
+	/* handle_port为状态发生变化的端口
+	   couple_port为handle_port的配对端口
+	*/
 	if( TRANSPORT_DOWN==this->status && true==handle_port_link){
 		if( true==handle_port_link && true==couple_port_link){
 			/* do actions when both ports link-up */
@@ -219,6 +235,7 @@ static void transport_node_detect_link_status_handler(
 	}
 }
 
+/* 检测link状态变化线程 */
 void * transport_node_detect_link_status_thread(void * arg){
 	struct transport_node * this = (struct transport_node *)arg;
 	this->main_port_link   = read_port_link_status(this->main_portno);
@@ -234,6 +251,7 @@ void * transport_node_detect_link_status_thread(void * arg){
 		usleep(10000);   // 10ms
 		bool main_port_link   = read_port_link_status(this->main_portno);
 		bool second_port_link = read_port_link_status(this->second_portno);
+		/* 若检测到link变化则进行相应处理 */
 		if( main_port_link!=this->main_port_link){
 			/* main port link status changed */
 			transport_node_detect_link_status_handler(this,
@@ -255,6 +273,12 @@ void * transport_node_detect_link_status_thread(void * arg){
 	}
 }
 
+/*
+接收线程:
+	接收到hello，向配对端口转发
+	接收到common-flush-fdb,刷新mac表
+	接收到complete-flush-fdb,通知另一个线程处理
+*/
 void * transport_node_recv_thread(void * arg){
 	struct transport_node * this = (struct transport_node *)arg;
 	char buf[1024]; 
@@ -264,6 +288,7 @@ void * transport_node_recv_thread(void * arg){
 	//printf("sizeof(struct sockaddr_ll): %d\n",sizeof(addr));
 	for(int cnter=1;;++cnter){
 		int recv_len;
+		/* 接收报文 */
 		if( (recv_len = raw_socket_recvfrom(&this->raw_sock, buf, sizeof(buf), &addr,&addrlen))<0){
 			perror("recvfrom");
 			return NULL;
@@ -273,6 +298,7 @@ void * transport_node_recv_thread(void * arg){
 
 		struct rrpp_vlan_packet sendbuf;
 		switch( rrpp_type ){
+			// 接收到hello报文,转发
 			case RRPP_TYPE_HELLO:
 //				printf("recv hello(%d)\n" , src_port);
 				/* transport hello packet directly */
@@ -289,10 +315,12 @@ void * transport_node_recv_thread(void * arg){
 					                  sizeof sendbuf);
 				}
 				break;
+			// 接收到common-flush-fdb,刷新mac表
 			case RRPP_TYPE_COMMON_FLUSH_FDB:
 				//printf("recv common-flush-fdb(%d)\n" , src_port);
 				this->refresh_fdb(this);
 				break;
+			// 接收到complete-flush-fdb,通知recv-complete-thread线程
 			case RRPP_TYPE_COMPLETE_FLUSH_FDB:
 			/*	// give it to another thread
 				if( TRANSPORT_PREFORWARDING==this->status){
@@ -325,6 +353,10 @@ void * transport_node_recv_thread(void * arg){
 	return NULL;
 }
 
+/*
+Preforwarding state:收到complete-flush-fdb 
+=> up state，放开恢复的端口
+*/
 void * transport_node_recv_complete_thread(void * arg){
 	struct transport_node * this = (struct transport_node *)arg;
 	for(;;){
@@ -353,6 +385,10 @@ void * transport_node_recv_complete_thread(void * arg){
 	}
 }
 
+/*
+Preforwarding state:接收complete-flush-fdb超时 
+=> up state，放开恢复的端口
+*/
 void * transport_node_check_complete_thread(void * arg){
 	struct transport_node * this = (struct transport_node *)arg;
 	for(;;){

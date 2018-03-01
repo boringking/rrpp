@@ -14,6 +14,8 @@ enum transport_node_status{
 	TRANSPORT_PREFORWARDING,
 };
 
+
+/* 类的解释参考struct major_node */
 struct transport_node{
 	struct raw_socket raw_sock;
 	/* attributes */

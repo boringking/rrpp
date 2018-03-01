@@ -7,6 +7,7 @@
 #include "ip1829.h"
 #include "ip1829lib.h"
 
+// 读取一个vlan中有哪些端口
 static int raw_vlan_read_member(int vid , uint32_t * portset){
 	if(singleRegSetting(ID_COMMON_MISC_SET_REG,2,0xd2,0x8000|vid)<0)
 		return -1;
@@ -20,6 +21,7 @@ static int raw_vlan_read_member(int vid , uint32_t * portset){
 	return 0;
 }
 
+// 配置一个vlan包含的端口
 static int raw_vlan_write_member(int vid , uint32_t portset){
 	const uint16_t data[6] = {
 		[0] = portset&0xffff,
@@ -35,6 +37,7 @@ static int raw_vlan_write_member(int vid , uint32_t portset){
 	return 0;
 }
 
+// 给一个vlan添加端口
 int raw_vlan_add_ports(int vid , uint32_t portset){
 	uint32_t o_portset;
 	if( raw_vlan_read_member(vid,&o_portset)<0)
@@ -47,6 +50,7 @@ int raw_vlan_add_ports(int vid , uint32_t portset){
 	return 0;
 }
 
+// 给一个vlan删除端口
 int raw_vlan_rm_ports(int vid , uint32_t portset){
 	uint32_t o_portset;
 	if( raw_vlan_read_member(vid,&o_portset)<0)

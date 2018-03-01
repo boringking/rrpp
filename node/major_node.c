@@ -16,12 +16,14 @@
 
 static void * this_node;
 
+// 销毁主节点
 static void major_node_killer(int signo){
 	printf("killing the node...\n");
 	major_node_destructor(this_node);
 	exit(EXIT_SUCCESS);
 }
 
+// 构建主节点
 int major_node_constructor(
 	struct major_node * this,
 	uint16_t did,
@@ -42,6 +44,7 @@ int major_node_constructor(
 	this->second_portno = second_portno;
 	this->status  = MAJOR_FAILED;
 	this->recv_hello_timeout = 0;
+	/* 初始化类方法 */
 	this->sendto_port      = major_node_sendto_port;
 	this->block_port       = major_node_block_port;
 	this->release_port     = major_node_release_port;
@@ -63,11 +66,11 @@ int major_node_constructor(
 //	enable_stp_ports(this->second_portno,false);
 	if(kill_stp()<0)
 		return -1;
-	/* rrpp relative registers init */
+	/* 配置rrpp相关的寄存器 */
 	if(rrpp_regs_config()<0){
 		return -1;
 	}
-	/* init socket */
+	/* init socket, 用来抓包和发包 */
 	if(raw_socket_init(&this->raw_sock, "eth0")<0){
 		printf("raw_socket_init: error\n");
 		return -1;
@@ -90,6 +93,7 @@ int major_node_constructor(
 		vlan_add_port_into_entry(this->vlan[i].name,this->main_portno);
 		vlan_add_port_into_entry(this->vlan[i].name,this->second_portno);
 #else
+		/* 将主/副节点加入rrpp vlan */
 		raw_vlan_add_ports(this->vlan[i].vid,
 		                   PBIT(this->main_portno)|PBIT(this->second_portno));
 #endif
@@ -97,10 +101,13 @@ int major_node_constructor(
 	
 	/* create threads  */
 	pthread_mutex_init(&this->access_mutex ,NULL);
+	/* 创建抓包线程 */
 	if(thread_constructor(&this->recv_thread,"recv-thread",DEFAULT_STACK_SIZE,major_node_recv_thread,this)<0)
 		goto THREAD_CONSTRUCTOR_FAIL;
+	/* 定时发送hello报文线程 */
 	if(thread_constructor(&this->hello_thread,"hello-thread",DEFAULT_STACK_SIZE,major_node_hello_thread,this)<0)
 		goto THREAD_CONSTRUCTOR_FAIL;
+	/* 检查接收hello报文超时线程 */
 	if(thread_constructor(&this->check_hello_thread,"check-hello-thread",DEFAULT_STACK_SIZE,major_node_check_hello_thread,this)<0)
 		goto THREAD_CONSTRUCTOR_FAIL;
 	// success
@@ -112,6 +119,7 @@ THREAD_CONSTRUCTOR_FAIL:
 	return -1;
 }
 
+// destroy major node
 void major_node_destructor(struct major_node * this){
 //	thread_destructor(&this->hello_thread);
 //	thread_destructor(&this->recv_thread);
@@ -136,6 +144,7 @@ void * major_node_recv_thread(void * arg){
 	//printf("sizeof(struct sockaddr_ll): %d\n",sizeof(addr));
 	for(int cnter=1;;++cnter){
 		int recv_len;
+		// 接收报文
 		if( (recv_len = raw_socket_recvfrom(&this->raw_sock, buf, sizeof(buf), &addr,&addrlen))<0){
 			perror("recvfrom");
 			return NULL;
@@ -147,8 +156,10 @@ void * major_node_recv_thread(void * arg){
 		}*/
 		//printf("[%d]get a packet\n" , cnter);
 		int src_port;
+		// 检查rrpp报文类型
 		int rrpp_type = this->judge_frame_type(this,buf,&src_port);
 		switch( rrpp_type ){
+			// 根据rrpp报文类型，执行相应动作
 			case RRPP_TYPE_HELLO:
 				this->recv_hello(this , src_port);
 				break;
@@ -165,7 +176,7 @@ void * major_node_recv_thread(void * arg){
 	return NULL;
 }
 
-
+// 定时发送hello报文
 void * major_node_hello_thread(void * arg){
 	struct major_node * this = (struct major_node *)arg;
 	
@@ -183,6 +194,10 @@ void * major_node_hello_thread(void * arg){
 	return NULL;
 }
 
+/*
+  在complete状态下规定时间内不能从副端口收到hello报文 
+  => failed state，放开副端口，刷新fdb，从主、副端口发送common-flush-fdb；
+*/
 void * major_node_check_hello_thread(void * arg){
 	struct major_node * this = (struct major_node *)arg;
 	struct rrpp_vlan_packet frame;
@@ -218,23 +233,25 @@ void * major_node_check_hello_thread(void * arg){
 	return NULL;
 }
 
-
+// 检查rrpp报文类型,并获得端口号
 int major_node_judge_frame_type(struct major_node * this,const void * frame,int * port){
 	const struct rrpp_special_vlan_packet * pkt = (const struct rrpp_special_vlan_packet *)frame;
 
+	/* 检查目标mac地址 */
 	if( !is_rrpp_dst_mac(pkt->hdr.dst) ){
 		/* not 01-80-c2-00-00-11~1F */
 		return RRPP_TYPE_NOP;
 	}
 //	printf("dst mac ok\n");
 
+	/* 检查特殊标签 */
 	if( pkt->special.tag != SPECIAL_TAG_VAL){
 		/* special tag not contained */
 		return RRPP_TYPE_NOP;
 	}
 //	printf("special tag ok\n");
 
-	/* obtain source port */
+	/* 获取源端口号 */
 	*port = pkt->special.src_port+1; // (begin from 0)
 	if( pkt->vlan.tpid != htons(0x8100) || pkt->vlan.vid != this->vlan->vid){
 		/* no vlan tag or vid not match(major ring) */
@@ -242,6 +259,7 @@ int major_node_judge_frame_type(struct major_node * this,const void * frame,int 
 	}
 //	printf("vlan tag ok\n");
 #if  1
+	/* 检查 domain id 和 ring id */
 	if( pkt->rrpp.domain_id != this->did || pkt->rrpp.ring_id != this->rid){
 		/* domain id or ring id not match */
 		return RRPP_TYPE_NOP;
@@ -259,6 +277,7 @@ int major_node_judge_frame_type(struct major_node * this,const void * frame,int 
 			return RRPP_TYPE_NOP;
 	}
 #else
+	/* 根据目标mac地址判断rrpp报文类型 */
 	switch( pkt->hdr.dst[5]){
 		case RRPP_TYPE_HELLO:
 		case RRPP_TYPE_LINK_UP:
@@ -272,6 +291,10 @@ int major_node_judge_frame_type(struct major_node * this,const void * frame,int 
 	return RRPP_TYPE_NOP;
 }
 
+/*
+failed状态下从副端口收到hello报文 
+=> complete state，阻塞副端口，刷新fdb，从主端口发送complete-flush-fdb；
+*/
 void major_node_recv_hello(struct major_node * this , int port){
 //	printf("recv a hello(%d)\n",port);
 	if(port == this->second_portno){
@@ -297,6 +320,10 @@ void major_node_recv_hello(struct major_node * this , int port){
 	}
 }
 
+/*
+complete状态下收到link-down报文
+=> failed state，放开副端口等等
+*/
 void major_node_recv_link_down(struct major_node * this,int port){
 	//printf("recv a linkdown\n");
 	if( port!=this->main_portno && port!=this->second_portno){
@@ -325,6 +352,11 @@ void major_node_recv_link_down(struct major_node * this,int port){
 	}
 }
 
+
+/*
+在failed状态下收到link-up报文，
+则向主、副端口发送common-flush-fdb（主节点对link-up报文的响应不代表对环网恢复的响应处理）
+*/
 void major_node_recv_link_up(struct major_node * this,int port){
 	//printf("recv a linkup\n");
 	if( port!=this->main_portno && port!=this->second_portno){
@@ -352,20 +384,24 @@ void major_node_recv_link_up(struct major_node * this,int port){
 	}
 }
 
+/* 像指定端口发送报文 */
 int major_node_sendto_port(struct major_node * this,int port,const void * src,int len){
 	return sendto_port(&this->raw_sock,port,src,len);
 }
 
+/* 阻塞指定端口 */
 int major_node_block_port(struct major_node * this , int port , const vlan_t * exclude){
 	enable_mac_learning(port,false);
 	return block_port(this,port,exclude);
 }
 
+/* 释放指定端口 */
 int major_node_release_port(struct major_node * this , int port , const vlan_t * exclude){
 	enable_mac_learning(port,true);
 	return release_port(this,port,exclude);
 }
 
+/* 刷新fdb */
 int major_node_refresh_fdb(struct major_node * this){
 	return refresh_fdb(this);
 }

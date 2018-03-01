@@ -79,11 +79,13 @@ int raw_socket_init(struct raw_socket * raw_sock,const char * nic_name ){
 	return 0;
 }
 
+/* 向指定端口发送报文(底层实现) */
 int raw_socket_sendto(const struct raw_socket * raw_sock,const void * buf,int len){
 	return
 	sendto(raw_sock->fd,buf,len,0,(struct sockaddr *)&raw_sock->addr,sizeof(struct sockaddr_ll));
 }
 
+/* 接收报文 */
 int raw_socket_recvfrom(const struct raw_socket * raw_sock, void * buf,int len,struct sockaddr_ll * addr,socklen_t * addrlen){
 	return recvfrom(raw_sock->fd , buf,len,0,(struct sockaddr * )addr,addrlen);
 }

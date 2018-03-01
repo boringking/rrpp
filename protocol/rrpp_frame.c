@@ -5,6 +5,7 @@
 #include "rrpp_frame.h"
 
 
+/* 判断mac地址是否为rrpp特定mac地址 */
 int is_rrpp_dst_mac(const uint8_t * mac){
 	const uint8_t rrpp_dst_mac[6]=RRPP_DST_MAC;
 	if( !memcmp(mac,rrpp_dst_mac,5) && mac[5]>=RRPP_DST_MAC_B5_BEGIN && mac[5]<=RRPP_DST_MAC_B5_END){
@@ -50,6 +51,7 @@ static void fill_rrpp_frame(
 	frame->rrpp.fail_timer  = 3;
 }
 
+/* 构造hello frame */
 void fill_rrpp_hello_frame(
 	struct rrpp_vlan_packet * frame , 
 	const uint8_t * local_mac , 
@@ -60,6 +62,7 @@ void fill_rrpp_hello_frame(
 	fill_rrpp_frame(frame,local_mac,RRPP_TYPE_HELLO,vid,did,rid);
 }
 
+/* 构造link-up frame */
 void fill_rrpp_linkup_frame(
 	struct rrpp_vlan_packet * frame , 
 	const uint8_t * local_mac , 
@@ -70,6 +73,7 @@ void fill_rrpp_linkup_frame(
 	fill_rrpp_frame(frame,local_mac,RRPP_TYPE_LINK_UP,vid,did,rid);
 }
 
+/* 构造link-down frame */
 void fill_rrpp_linkdown_frame(
 	struct rrpp_vlan_packet * frame , 
 	const uint8_t * local_mac , 
@@ -80,6 +84,7 @@ void fill_rrpp_linkdown_frame(
 	fill_rrpp_frame(frame,local_mac,RRPP_TYPE_LINK_DOWN,vid,did,rid);
 }
 
+/* 构造common-flush-fdb frame */
 void fill_rrpp_common_flush_fdb_frame(
 	struct rrpp_vlan_packet * frame , 
 	const uint8_t * local_mac , 
@@ -90,6 +95,7 @@ void fill_rrpp_common_flush_fdb_frame(
 	fill_rrpp_frame(frame,local_mac,RRPP_TYPE_COMMON_FLUSH_FDB,vid,did,rid);
 }
 
+/* 构造complete-flush-fdb frame */
 void fill_rrpp_complete_flush_fdb_frame(
 	struct rrpp_vlan_packet * frame , 
 	const uint8_t * local_mac , 
@@ -100,7 +106,7 @@ void fill_rrpp_complete_flush_fdb_frame(
 	fill_rrpp_frame(frame,local_mac,RRPP_TYPE_COMPLETE_FLUSH_FDB,vid,did,rid);
 }
 
-
+/* 移除special tag */
 const void * cp_remove_special_tag(struct rrpp_vlan_packet * sendbuf,const char * buf){
 	memcpy(sendbuf,buf,12);
 	memcpy(&sendbuf->vlan,
