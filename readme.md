@@ -1,2 +1,2 @@
 # rrpp
-Implementation of Rapid Ring Protection Protocol(mips-linux)
+Implementation of rapid ring protection protocol(mips-linux)
