@@ -8,7 +8,7 @@
 #define LINK_DOWN   0
 */
 
-bool read_port_link_status(int port);
+bool read_port_link_status (int port);
 
 
 

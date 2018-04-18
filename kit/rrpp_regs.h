@@ -8,7 +8,7 @@
 
 
 
-int rrpp_regs_config(void);
+int rrpp_regs_config (void);
 
 
 

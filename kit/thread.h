@@ -5,10 +5,10 @@
 
 
 struct thread {
-	const char * name;
-	pthread_t tid;
-	//void * stackaddr;
-	void * (*routine)(void*);
+    const char * name;
+    pthread_t tid;
+    //void * stackaddr;
+    void * (*routine) (void *);
 };
 
 
@@ -17,8 +17,9 @@ struct thread {
 
 
 
-int thread_constructor(struct thread * this ,const char * name, int stacksize,void *(*routine)(void*),void * arg);
-void thread_destructor(struct thread * this);
+int thread_constructor (struct thread * this , const char * name, int stacksize,
+                        void * (*routine) (void *), void * arg);
+void thread_destructor (struct thread * this);
 
 
 #endif
