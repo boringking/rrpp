@@ -1,3 +1,12 @@
+/**
+ * @brief    Implementation of rapid ring protection protocol(mips-linux)
+ *
+ * @author   lycon
+ * @blog     https://lk361115629.github.io/
+ * @github   https://github.com/lk361115629
+ *
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
