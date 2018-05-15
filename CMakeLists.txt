@@ -7,17 +7,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_C_FLAGS "-std=c99")
 set(CMAKE_EXE_LINKER_FLAGS -pthread)
 
-# cross-compiler
-set(CROSS /opt/acrospeed/mips-linux-uclibc/bin/mips-linux-)
-set(CMAKE_AR         ${CROSS}ar)
-set(CMAKE_C_COMPILER ${CROSS}cc)
-set(CMAKE_LINKER     ${CROSS}ld)
-set(CMAKE_NM         ${CROSS}nm)
-set(CMAKE_OBJCOPY    ${CROSS}objcopy)
-set(CMAKE_OBJDUMP    ${CROSS}objdump)
-set(CMAKE_RANLIB     ${CROSS}ranlib)
-set(CMAKE_STRIP      ${CROSS}strip)
-
 
 include_directories(${PROJECT_SOURCE_DIR}/kit)
 include_directories(${PROJECT_SOURCE_DIR}/node)

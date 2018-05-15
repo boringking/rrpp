@@ -11,3 +11,5 @@ install:
 clean:
 	make -C ./build/ clean
 
+cmake:
+	mkdir -p build && cd build && rm -rf * && cmake .. -DCMAKE_TOOLCHAIN_FILE=../ToolChain.cmake
